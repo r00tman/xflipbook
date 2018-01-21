@@ -31,7 +31,7 @@ public:
         _tabletID = 0;
         for (int i = 0; i < ndev; i++)
         {
-            printf("%d. %s (%d)\n", i, devinfo[i].name, devinfo[i].id);
+            printf("%d. %s (%lu)\n", i, devinfo[i].name, devinfo[i].id);
             if (strcmp(devinfo[i].name, name) == 0)
             {
                 _tabletID = devinfo[i].id;
