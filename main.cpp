@@ -26,7 +26,7 @@
 	
 Uint8 *pixels[FRAMEST];
 XEvent event[MAXEVENTS];
-int frame_cnt = FRAMESTOTAL;
+int frame_cnt = 12;
 int frame;
 
 int offsett() {
@@ -111,6 +111,7 @@ int main() {
 
     bool done = false;
     bool playing = false;
+    int frame_rate = 12;
     while (!done) {
         ImGuiIO& io = ImGui::GetIO();
         while (XPending(xdisplay)) {
@@ -175,12 +176,15 @@ int main() {
         what.h = DIMY;
 
         SDL_RenderCopy(renderer, texture[offsett()], &what, NULL);
+
+        // GUI
         glUseProgram (0);
         ImGui_ImplSdlGL2_NewFrame(window);
         ImGui::Text("drawing on %d, %d, %d", offsett(), offsety(), offsetx());
         if (ImGui::Button("Quit")) {
             done = true;
         }
+        ImGui::SliderInt("frame_rate", &frame_rate, 1, 60);
         ImGui::SliderInt("frame_cnt", &frame_cnt, 1, FRAMESTOTAL - 1);
         ImGui::SliderInt("frame", &frame, 0, frame_cnt - 1);
         if (ImGui::Button("Play/Stop")) {
@@ -199,9 +203,10 @@ int main() {
 
         if (playing) {
             frame = (frame + 1) % frame_cnt;
-            SDL_Delay(1000/24);
+            SDL_Delay(1000/frame_rate);
+        } else {
+            /* SDL_Delay(16); */
         }
-        /* SDL_Delay(16); */
     }
 	   
     ImGui_ImplSdlGL2_Shutdown();
