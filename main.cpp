@@ -107,7 +107,7 @@ int main() {
     int event_cursor = 0;
 
     auto xscreen = DefaultScreen(xdisplay);
-    Tablet tablet(xdisplay, "Wacom Pen and multitouch sensor Pen Pen (0)");
+    Tablet tablet(xdisplay);
     tablet.open(xscreen, xwindow);
 	   
     TabletEvent last{0, 0, -1};
@@ -156,8 +156,7 @@ int main() {
                 done = true;
             if (sdl_event.type == SDL_KEYDOWN) {
                 switch (sdl_event.key.keysym.sym) {
-                    case SDLK_SPACE:
-                    case SDLK_RETURN: playing = !playing; break;
+                    case SDLK_SPACE: playing = !playing; break;
                     case ',': frame = (frame + frame_cnt - 1) % frame_cnt; break;
                     case '.': frame = (frame + 1) % frame_cnt; break;
                     case 'q': done = true; break;

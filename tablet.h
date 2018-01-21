@@ -18,7 +18,7 @@ class Tablet {
     int _mEventType;
  
 public:
-    Tablet(Display *display, const char *name="Wacom Co.,Ltd. Pen and multitouch sensor Pen stylus")
+    Tablet(Display *display, const char *name=NULL)
         :_display(display), _tabletDev(nullptr) {
         int ndev;
         XDeviceInfo *devinfo;
@@ -31,11 +31,15 @@ public:
         _tabletID = 0;
         for (int i = 0; i < ndev; i++)
         {
-            printf("%d. %s (%lu)\n", i, devinfo[i].name, devinfo[i].id);
-            if (strcmp(devinfo[i].name, name) == 0)
+            printf("%s (%lu)\n", devinfo[i].name, devinfo[i].id);
+            if (name && strcmp(devinfo[i].name, name) == 0)
             {
                 _tabletID = devinfo[i].id;
             }
+        }
+        if (!name) {
+            printf("Select your tablet id from the list: ");
+            scanf("%lu", &_tabletID);
         }
         XFreeDeviceList(devinfo);
         if (_tabletID == 0) {
