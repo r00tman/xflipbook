@@ -93,6 +93,7 @@ int main() {
                                        SDL_PIXELFORMAT_ARGB8888,
                                        SDL_TEXTUREACCESS_STREAMING,
                                        DIMX*FRAMESX, DIMY*FRAMESY);
+        SDL_SetTextureBlendMode(texture[i], SDL_BLENDMODE_ADD);
     }
 
     SDL_SysWMinfo wmInfo;
@@ -112,6 +113,9 @@ int main() {
     bool done = false;
     bool playing = false;
     int frame_rate = 12;
+
+    bool onion_prev = false;
+    bool onion_next = false;
     while (!done) {
         ImGuiIO& io = ImGui::GetIO();
         while (XPending(xdisplay)) {
@@ -155,6 +159,8 @@ int main() {
                     case ',': frame = (frame + frame_cnt - 1) % frame_cnt; break;
                     case '.': frame = (frame + 1) % frame_cnt; break;
                     case 'q': done = true; break;
+                    case '[': onion_prev = !onion_prev; break;
+                    case ']': onion_next = !onion_next; break;
                 }
             }
         }
@@ -169,13 +175,22 @@ int main() {
 
         SDL_UpdateTexture(texture[offsett()], NULL, pixels[offsett()], FRAMESX * DIMX * sizeof (Uint32));
 
-        SDL_Rect what;
-        what.x = offsetx()*DIMX;
-        what.y = offsety()*DIMY;
-        what.w = DIMX;
-        what.h = DIMY;
+        for (int i = 0; i < onion_prev*2; ++i) {
+            frame = (frame + frame_cnt - 1) % frame_cnt;
+        }
+        for (int i = 0; i < onion_prev*2+1+onion_next*2; ++i) {
+            SDL_Rect what;
+            what.x = offsetx()*DIMX;
+            what.y = offsety()*DIMY;
+            what.w = DIMX;
+            what.h = DIMY;
 
-        SDL_RenderCopy(renderer, texture[offsett()], &what, NULL);
+            SDL_RenderCopy(renderer, texture[offsett()], &what, NULL);
+            frame = (frame + 1) % frame_cnt;
+        }
+        for (int i = 0; i < onion_next*2+1; ++i) {
+            frame = (frame + frame_cnt - 1) % frame_cnt;
+        }
 
         // GUI
         glUseProgram (0);
@@ -198,6 +213,10 @@ int main() {
         if (ImGui::Button(">")) {
             frame = (frame + 1) % frame_cnt;
         }
+        ImGui::SameLine();
+        ImGui::Checkbox("onion_prev", &onion_prev);
+        ImGui::SameLine();
+        ImGui::Checkbox("onion_next", &onion_next);
         ImGui::Render();
         SDL_RenderPresent(renderer);
 
