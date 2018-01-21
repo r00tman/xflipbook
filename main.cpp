@@ -16,8 +16,7 @@
 
 #include "tablet.h"
 	
-#define DIMX 2560
-#define DIMY 1440
+int DIMX, DIMY, MAX_RATE;
 #define FRAMESX 2
 #define FRAMESY 2
 #define FRAMEST 50
@@ -65,8 +64,11 @@ int main() {
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
-    SDL_DisplayMode current;
-    SDL_GetCurrentDisplayMode(0, &current);
+    SDL_DisplayMode display_mode;
+    SDL_GetCurrentDisplayMode(0, &display_mode);
+    DIMX = display_mode.w;
+    DIMY = display_mode.h;
+    MAX_RATE = std::max(60, display_mode.refresh_rate);
 
     SDL_Window *window = SDL_CreateWindow("My Game Window",
                           SDL_WINDOWPOS_CENTERED,
@@ -123,8 +125,8 @@ int main() {
             if (tablet.eventOf(&event[event_cursor]) && !io.WantCaptureMouse) {
                 auto res = tablet.parse(&event[event_cursor]);
                 /* printf ("%d data is %d,%d,%d\n", event_cursor, res.x, res.y, res.pressure); */
-                res.x = res.x * (2560. / 16777216);
-                res.y = res.y * (1440. / 16777216);
+                res.x = res.x * (DIMX / 16777216.);
+                res.y = res.y * (DIMY / 16777216.);
 
                 float norm = sqrtf(powf(last.x-res.x, 2)+powf(last.y-res.y, 2));
                 int STEPS = ceilf(norm*5);
@@ -199,7 +201,7 @@ int main() {
         if (ImGui::Button("Quit")) {
             done = true;
         }
-        ImGui::SliderInt("frame_rate", &frame_rate, 1, 60);
+        ImGui::SliderInt("frame_rate", &frame_rate, 1, MAX_RATE);
         ImGui::SliderInt("frame_cnt", &frame_cnt, 1, FRAMESTOTAL - 1);
         ImGui::SliderInt("frame", &frame, 0, frame_cnt - 1);
         if (ImGui::Button("Play/Stop")) {
