@@ -70,7 +70,7 @@ int main() {
     DIMY = display_mode.h;
     MAX_RATE = std::max(60, display_mode.refresh_rate);
 
-    SDL_Window *window = SDL_CreateWindow("My Game Window",
+    SDL_Window *window = SDL_CreateWindow("XFlipbook",
                           SDL_WINDOWPOS_CENTERED,
                           SDL_WINDOWPOS_CENTERED,
                           DIMX, DIMY,
