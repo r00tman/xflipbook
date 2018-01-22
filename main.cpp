@@ -107,8 +107,8 @@ int main() {
     int event_cursor = 0;
 
     auto xscreen = DefaultScreen(xdisplay);
-    Tablet tablet(xdisplay);
-    tablet.open(xscreen, xwindow);
+    Tablet *tablet = new Tablet(xdisplay);
+    tablet->open(xscreen, xwindow);
 	   
     TabletEvent last{0, 0, -1};
 
@@ -122,8 +122,8 @@ int main() {
         ImGuiIO& io = ImGui::GetIO();
         while (XPending(xdisplay)) {
             XNextEvent(xdisplay, &event[event_cursor]);
-            if (tablet.eventOf(&event[event_cursor]) && !io.WantCaptureMouse) {
-                auto res = tablet.parse(&event[event_cursor]);
+            if (tablet->eventOf(&event[event_cursor]) && !io.WantCaptureMouse) {
+                auto res = tablet->parse(&event[event_cursor]);
                 /* printf ("%d data is %d,%d,%d\n", event_cursor, res.x, res.y, res.pressure); */
                 res.x = res.x * (DIMX / 16777216.);
                 res.y = res.y * (DIMY / 16777216.);
@@ -236,6 +236,7 @@ int main() {
     }
     SDL_DestroyRenderer(renderer);
     SDL_GL_DeleteContext(glcontext);
+    delete tablet;
     SDL_DestroyWindow(window);
 
     SDL_Quit();
