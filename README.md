@@ -7,7 +7,7 @@ Dependencies:
  - SDL2
  - libX11, libXi
 
-Then: `make; ./main`
+To run: `make; ./main`
 
 ## Shortcuts
  - q – quit
@@ -18,8 +18,8 @@ Then: `make; ./main`
  - ] – toggle onion skin (forward)
  
 ## Troubleshooting
-If pen is drawing at the wrong position or isn't drawing anything at all, try following.
+If your pen is drawing at the wrong position or isn't drawing anything at all, try the following.
 
 In `main.cpp` change constant 16777216 according to your tablet area settings.
 
-For some configurations, it should set at around 32000. To get more precise info you can use `xsetwacom`.
+For some configurations, it should be set at around 32000. To get more precise info you can use `xsetwacom`.
