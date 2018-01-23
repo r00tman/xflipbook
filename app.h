@@ -128,7 +128,7 @@ public:
             XNextEvent(_xdisplay, &event);
             if (_tablet->eventOf(&event) && !io.WantCaptureMouse) {
                 auto res = _tablet->parse(&event);
-                /* printf ("%d data is %d,%d,%d\n", event_cursor, res.x, res.y, res.pressure); */
+                /* printf("%d data is %d,%d,%d\n", event_cursor, res.x, res.y, res.pressure); */
                 res.x = res.x * (_dimx / 16777216.);
                 res.y = res.y * (_dimy / 16777216.);
 
@@ -155,8 +155,13 @@ public:
         }
 
         SDL_Event sdl_event;
-        while (SDL_PollEvent(&sdl_event))
-        {
+        bool waited = false;
+        if (!playing) {
+            SDL_WaitEvent(&sdl_event);
+            waited = true;
+        }
+        while (waited || SDL_PollEvent(&sdl_event)) {
+            waited = false;
             ImGui_ImplSdlGL2_ProcessEvent(&sdl_event);
             if (sdl_event.type == SDL_QUIT)
                 done = true;
@@ -176,7 +181,6 @@ public:
     }
 
     void render() {
-        // Rendering
         SDL_Rect vp;
         vp.x = vp.y = 0;
         vp.w = (int) ImGui::GetIO().DisplaySize.x;
@@ -202,7 +206,7 @@ public:
     }
 
     void renderGUI() {
-        glUseProgram (0);
+        glUseProgram(0);
         ImGui_ImplSdlGL2_NewFrame(_window);
         if (ImGui::Button("Quit")) {
             done = true;
