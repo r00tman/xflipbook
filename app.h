@@ -197,7 +197,11 @@ public:
             _fb->prevFrame();
         }
 
-        // GUI
+        renderGUI();
+        SDL_RenderPresent(_renderer);
+    }
+
+    void renderGUI() {
         glUseProgram (0);
         ImGui_ImplSdlGL2_NewFrame(_window);
         if (ImGui::Button("Quit")) {
@@ -222,7 +226,6 @@ public:
         ImGui::SameLine();
         ImGui::Checkbox("onion_next", &onion_next);
         ImGui::Render();
-        SDL_RenderPresent(_renderer);
     }
 
     void run() {
