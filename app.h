@@ -106,118 +106,129 @@ public:
         SDL_Quit();
     }
 
-    void run() {
-        bool done = false;
-        bool playing = false;
-        int frame_rate = 12;
-        int frame_cnt = 12;
+private:
+    TabletEvent _last{0, 0, 0};
 
-        bool onion_prev = false;
-        bool onion_next = false;
+public:
+    bool done = false;
+    bool playing = false;
+    int frame_rate = 12;
+    int frame_cnt = 12;
 
+    bool onion_prev = false;
+    bool onion_next = false;
+
+public:
+    void processEvents() {
         std::vector<XEvent> events;
-        TabletEvent last{0, 0, -1};
 
-        while (!done) {
-            ImGuiIO& io = ImGui::GetIO();
-            while (XPending(_xdisplay)) {
-                XEvent event;
-                XNextEvent(_xdisplay, &event);
-                if (_tablet->eventOf(&event) && !io.WantCaptureMouse) {
-                    auto res = _tablet->parse(&event);
-                    /* printf ("%d data is %d,%d,%d\n", event_cursor, res.x, res.y, res.pressure); */
-                    res.x = res.x * (_dimx / 16777216.);
-                    res.y = res.y * (_dimy / 16777216.);
+        ImGuiIO& io = ImGui::GetIO();
+        while (XPending(_xdisplay)) {
+            XEvent event;
+            XNextEvent(_xdisplay, &event);
+            if (_tablet->eventOf(&event) && !io.WantCaptureMouse) {
+                auto res = _tablet->parse(&event);
+                /* printf ("%d data is %d,%d,%d\n", event_cursor, res.x, res.y, res.pressure); */
+                res.x = res.x * (_dimx / 16777216.);
+                res.y = res.y * (_dimy / 16777216.);
 
-                    float norm = sqrtf(powf(last.x-res.x, 2)+powf(last.y-res.y, 2));
-                    int STEPS = ceilf(norm*5);
-                    if (last.pressure != -1 && res.pressure > 0) {
-                        for (int step = 0; step <= STEPS; ++step) {
-                            TabletEvent in{
-                                (int)interpolate(last.x, res.x, step*1./STEPS),
-                                (int)interpolate(last.y, res.y, step*1./STEPS),
-                                int(interpolate(last.pressure, res.pressure, step*1./STEPS)*norm/STEPS),
-                            };
-                            set(in);
-                        }
-                    }
-                    last = res;
-                } else {
-                    events.push_back(event);
-                }
-            }
-
-            for (auto &event : events) {
-                XPutBackEvent(_xdisplay, &event);
-            }
-
-            SDL_Event sdl_event;
-            while (SDL_PollEvent(&sdl_event))
-            {
-                ImGui_ImplSdlGL2_ProcessEvent(&sdl_event);
-                if (sdl_event.type == SDL_QUIT)
-                    done = true;
-                if (sdl_event.type == SDL_KEYDOWN) {
-                    switch (sdl_event.key.keysym.sym) {
-                        case SDLK_SPACE: playing = !playing; break;
-                        case ',': _fb->prevFrame(); break;
-                        case '.': _fb->nextFrame(); break;
-                        case 'q': done = true; break;
-                        case '[': onion_prev = !onion_prev; break;
-                        case ']': onion_next = !onion_next; break;
+                float norm = sqrtf(powf(_last.x-res.x, 2)+powf(_last.y-res.y, 2));
+                int STEPS = ceilf(norm*5);
+                if (_last.pressure > 0 && res.pressure > 0) {
+                    for (int step = 0; step <= STEPS; ++step) {
+                        TabletEvent in{
+                            (int)interpolate(_last.x, res.x, step*1./STEPS),
+                            (int)interpolate(_last.y, res.y, step*1./STEPS),
+                            int(interpolate(_last.pressure, res.pressure, step*1./STEPS)*norm/STEPS),
+                        };
+                        set(in);
                     }
                 }
+                _last = res;
+            } else {
+                events.push_back(event);
             }
+        }
 
-            events.clear();
+        for (auto &event : events) {
+            XPutBackEvent(_xdisplay, &event);
+        }
 
-            // Rendering
-            SDL_Rect vp;
-            vp.x = vp.y = 0;
-            vp.w = (int) ImGui::GetIO().DisplaySize.x;
-            vp.h = (int) ImGui::GetIO().DisplaySize.y;
-            SDL_RenderSetViewport(_renderer, &vp);
-            SDL_RenderClear(_renderer);
-
-            _fb->updateActive();
-
-            for (int i = 0; i < onion_prev*2; ++i) {
-                _fb->prevFrame();
-            }
-            for (int i = 0; i < onion_prev*2+1+onion_next*2; ++i) {
-                _fb->renderActive();
-                _fb->nextFrame();
-            }
-            for (int i = 0; i < onion_next*2+1; ++i) {
-                _fb->prevFrame();
-            }
-
-            // GUI
-            glUseProgram (0);
-            ImGui_ImplSdlGL2_NewFrame(_window);
-            if (ImGui::Button("Quit")) {
+        SDL_Event sdl_event;
+        while (SDL_PollEvent(&sdl_event))
+        {
+            ImGui_ImplSdlGL2_ProcessEvent(&sdl_event);
+            if (sdl_event.type == SDL_QUIT)
                 done = true;
+            if (sdl_event.type == SDL_KEYDOWN) {
+                switch (sdl_event.key.keysym.sym) {
+                    case SDLK_SPACE: playing = !playing; break;
+                    case ',': _fb->prevFrame(); break;
+                    case '.': _fb->nextFrame(); break;
+                    case 'q': done = true; break;
+                    case '[': onion_prev = !onion_prev; break;
+                    case ']': onion_next = !onion_next; break;
+                }
             }
-            ImGui::SliderInt("frame_rate", &frame_rate, 1, _max_rate);
-            ImGui::SliderInt("frame_cnt", &frame_cnt, 1, FRAMESTOTAL - 1);
-            ImGui::SliderInt("frame", &_fb->getCurrentFrame(), 0, frame_cnt - 1);
-            if (ImGui::Button("Play/Stop")) {
-                playing = !playing;
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("<")) {
-                _fb->prevFrame();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button(">")) {
-                _fb->nextFrame();
-            }
-            ImGui::SameLine();
-            ImGui::Checkbox("onion_prev", &onion_prev);
-            ImGui::SameLine();
-            ImGui::Checkbox("onion_next", &onion_next);
-            ImGui::Render();
-            SDL_RenderPresent(_renderer);
+        }
+
+        events.clear();
+    }
+
+    void render() {
+        // Rendering
+        SDL_Rect vp;
+        vp.x = vp.y = 0;
+        vp.w = (int) ImGui::GetIO().DisplaySize.x;
+        vp.h = (int) ImGui::GetIO().DisplaySize.y;
+        SDL_RenderSetViewport(_renderer, &vp);
+        SDL_RenderClear(_renderer);
+
+        _fb->updateActive();
+
+        for (int i = 0; i < onion_prev*2; ++i) {
+            _fb->prevFrame();
+        }
+        for (int i = 0; i < onion_prev*2+1+onion_next*2; ++i) {
+            _fb->renderActive();
+            _fb->nextFrame();
+        }
+        for (int i = 0; i < onion_next*2+1; ++i) {
+            _fb->prevFrame();
+        }
+
+        // GUI
+        glUseProgram (0);
+        ImGui_ImplSdlGL2_NewFrame(_window);
+        if (ImGui::Button("Quit")) {
+            done = true;
+        }
+        ImGui::SliderInt("frame_rate", &frame_rate, 1, _max_rate);
+        ImGui::SliderInt("frame_cnt", &frame_cnt, 1, FRAMESTOTAL - 1);
+        ImGui::SliderInt("frame", &_fb->getCurrentFrame(), 0, frame_cnt - 1);
+        if (ImGui::Button("Play/Stop")) {
+            playing = !playing;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("<")) {
+            _fb->prevFrame();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button(">")) {
+            _fb->nextFrame();
+        }
+        ImGui::SameLine();
+        ImGui::Checkbox("onion_prev", &onion_prev);
+        ImGui::SameLine();
+        ImGui::Checkbox("onion_next", &onion_next);
+        ImGui::Render();
+        SDL_RenderPresent(_renderer);
+    }
+
+    void run() {
+        while (!done) {
+            processEvents();
+            render();
 
             if (playing) {
                 _fb->nextFrame();
