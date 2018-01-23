@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <vector>
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
@@ -15,6 +16,7 @@
 #include "imgui_impl_sdl_gl2.h"
 
 #include "tablet.h"
+#include "framebuffer.h"
 	
 int DIMX, DIMY, MAX_RATE;
 #define FRAMESX 2
@@ -23,33 +25,19 @@ int DIMX, DIMY, MAX_RATE;
 #define FRAMESTOTAL (FRAMESX*FRAMESY*FRAMEST)
 #define MAXEVENTS (1000000)
 	
-Uint8 *pixels[FRAMEST];
 XEvent event[MAXEVENTS];
 int frame_cnt = 12;
-int frame;
 
-int offsett() {
-    return (frame/FRAMESY)/FRAMESX;
-}
-
-int offsetx() {
-    return (frame/FRAMESY)%FRAMESX;
-}
-
-int offsety() {
-    return frame%FRAMESY;
-}
+FrameBuffer *fb;
 
 void set(TabletEvent res) {
-    if (res.x < 0)     res.x = 0;
-    if (res.y < 0)     res.y = 0;
-    if (res.x >= DIMX) res.x = DIMX-1;
-    if (res.y >= DIMY) res.y = DIMY-1;
-    res.x += offsetx() * DIMX;
-    res.y += offsety() * DIMY;
-    auto pxl = pixels[offsett()] + 4 * (res.x + DIMX * FRAMESX * res.y);
-    pxl[0] = pxl[1] = pxl[2] = std::min(255, pxl[0] + res.pressure/5);
-    pxl[3] = 255;
+    try {
+        auto pxl = fb->getPixel(res.x, res.y);
+        pxl[0] = pxl[1] = pxl[2] = std::min(255, pxl[0] + res.pressure/5);
+        pxl[3] = 255;
+    } catch (std::range_error&) {
+        printf("oob pixel at %d %d\n", res.x, res.y);
+    }
 }
 
 float interpolate(float x, float y, float a) {
@@ -88,15 +76,7 @@ int main() {
 
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1,  SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
-    SDL_Texture *texture[FRAMEST];
-    for (int i = 0; i < FRAMEST; ++i) {
-        pixels[i] = new Uint8[FRAMESX*FRAMESY*DIMY*DIMX*4];
-        texture[i] = SDL_CreateTexture(renderer,
-                                       SDL_PIXELFORMAT_ARGB8888,
-                                       SDL_TEXTUREACCESS_STREAMING,
-                                       DIMX*FRAMESX, DIMY*FRAMESY);
-        SDL_SetTextureBlendMode(texture[i], SDL_BLENDMODE_ADD);
-    }
+    fb = new FrameBuffer(renderer, FRAMEST, DIMX, DIMY, FRAMESX, FRAMESY);
 
     SDL_SysWMinfo wmInfo;
     SDL_VERSION(&wmInfo.version);
@@ -109,7 +89,7 @@ int main() {
     auto xscreen = DefaultScreen(xdisplay);
     Tablet *tablet = new Tablet(xdisplay);
     tablet->open(xscreen, xwindow);
-	   
+
     TabletEvent last{0, 0, -1};
 
     bool done = false;
@@ -137,7 +117,7 @@ int main() {
                             (int)interpolate(last.y, res.y, step*1./STEPS),
                             int(interpolate(last.pressure, res.pressure, step*1./STEPS)*norm/STEPS),
                         };
-                        set(in); 
+                        set(in);
                     }
                 }
                 last = res;
@@ -157,8 +137,8 @@ int main() {
             if (sdl_event.type == SDL_KEYDOWN) {
                 switch (sdl_event.key.keysym.sym) {
                     case SDLK_SPACE: playing = !playing; break;
-                    case ',': frame = (frame + frame_cnt - 1) % frame_cnt; break;
-                    case '.': frame = (frame + 1) % frame_cnt; break;
+                    case ',': fb->prevFrame(); break;
+                    case '.': fb->nextFrame(); break;
                     case 'q': done = true; break;
                     case '[': onion_prev = !onion_prev; break;
                     case ']': onion_next = !onion_next; break;
@@ -169,50 +149,43 @@ int main() {
         // Rendering
         SDL_Rect vp;
         vp.x = vp.y = 0;
-        vp.w = (int) ImGui::GetIO ().DisplaySize.x;
-        vp.h = (int) ImGui::GetIO ().DisplaySize.y;
+        vp.w = (int) ImGui::GetIO().DisplaySize.x;
+        vp.h = (int) ImGui::GetIO().DisplaySize.y;
         SDL_RenderSetViewport (renderer, &vp);
         SDL_RenderClear (renderer);
 
-        SDL_UpdateTexture(texture[offsett()], NULL, pixels[offsett()], FRAMESX * DIMX * sizeof (Uint32));
+        fb->updateActive();
 
         for (int i = 0; i < onion_prev*2; ++i) {
-            frame = (frame + frame_cnt - 1) % frame_cnt;
+            fb->prevFrame();
         }
         for (int i = 0; i < onion_prev*2+1+onion_next*2; ++i) {
-            SDL_Rect what;
-            what.x = offsetx()*DIMX;
-            what.y = offsety()*DIMY;
-            what.w = DIMX;
-            what.h = DIMY;
-
-            SDL_RenderCopy(renderer, texture[offsett()], &what, NULL);
-            frame = (frame + 1) % frame_cnt;
+            fb->renderActive();
+            fb->nextFrame();
         }
         for (int i = 0; i < onion_next*2+1; ++i) {
-            frame = (frame + frame_cnt - 1) % frame_cnt;
+            fb->prevFrame();
         }
 
         // GUI
         glUseProgram (0);
         ImGui_ImplSdlGL2_NewFrame(window);
-        ImGui::Text("drawing on %d, %d, %d", offsett(), offsety(), offsetx());
         if (ImGui::Button("Quit")) {
             done = true;
         }
         ImGui::SliderInt("frame_rate", &frame_rate, 1, MAX_RATE);
         ImGui::SliderInt("frame_cnt", &frame_cnt, 1, FRAMESTOTAL - 1);
-        ImGui::SliderInt("frame", &frame, 0, frame_cnt - 1);
+        ImGui::SliderInt("frame", &fb->getCurrentFrame(), 0, frame_cnt - 1);
         if (ImGui::Button("Play/Stop")) {
             playing = !playing;
         }
         ImGui::SameLine();
         if (ImGui::Button("<")) {
-            frame = (frame + frame_cnt - 1) % frame_cnt;
+            fb->prevFrame();
         }
         ImGui::SameLine();
         if (ImGui::Button(">")) {
-            frame = (frame + 1) % frame_cnt;
+            fb->nextFrame();
         }
         ImGui::SameLine();
         ImGui::Checkbox("onion_prev", &onion_prev);
@@ -222,23 +195,20 @@ int main() {
         SDL_RenderPresent(renderer);
 
         if (playing) {
-            frame = (frame + 1) % frame_cnt;
+            fb->nextFrame();
             SDL_Delay(1000/frame_rate);
         } else {
             /* SDL_Delay(16); */
         }
     }
-	   
+
+    delete fb;
     ImGui_ImplSdlGL2_Shutdown();
-    for (int i = 0; i < FRAMEST; ++i) {
-        delete[] pixels[i];
-        SDL_DestroyTexture(texture[i]);
-    }
     SDL_DestroyRenderer(renderer);
     SDL_GL_DeleteContext(glcontext);
     delete tablet;
     SDL_DestroyWindow(window);
 
     SDL_Quit();
-    return(0);
+    return 0;
 }
