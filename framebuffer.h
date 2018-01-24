@@ -75,16 +75,24 @@ public:
         _buffers[_getBufferIdx(frame)]->render(&what, nullptr);
     }
 
-    void prevFrame() {
-        if (_buffers.size()) {
-            _frame = (_frame + _buffers.size() - 1) % _buffers.size();
+    void prevFrame(int frame_count=0) {
+        auto frame_capacity = getFrameCapacity();
+        if (frame_count == 0 || frame_count > frame_capacity) {
+            frame_count = frame_capacity;
         }
+        _frame = (_frame + frame_count - 1) % frame_count;
     }
 
-    void nextFrame() {
-        if (_buffers.size()) {
-            _frame = (_frame + 1) % _buffers.size();
+    void nextFrame(int frame_count=0) {
+        auto frame_capacity = getFrameCapacity();
+        if (frame_count == 0 || frame_count > frame_capacity) {
+            frame_count = frame_capacity;
         }
+        _frame = (_frame + 1) % frame_count;
+    }
+
+    int getFrameCapacity() const {
+        return _buffers.size() * _framesx * _framesy;
     }
 };
 

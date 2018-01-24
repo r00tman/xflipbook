@@ -187,8 +187,8 @@ public:
             if (sdl_event.type == SDL_KEYDOWN) {
                 switch (sdl_event.key.keysym.sym) {
                     case SDLK_SPACE: playing = !playing; break;
-                    case ',': _fb->prevFrame(); break;
-                    case '.': _fb->nextFrame(); break;
+                    case ',': _fb->prevFrame(frame_cnt); break;
+                    case '.': _fb->nextFrame(frame_cnt); break;
                     case 'q': done = true; break;
                     case '[': onion_prev = !onion_prev; break;
                     case ']': onion_next = !onion_next; break;
@@ -218,14 +218,14 @@ public:
         _background->render(nullptr, nullptr);
 
         for (int i = 0; i < onion_prev*2; ++i) {
-            _fb->prevFrame();
+            _fb->prevFrame(frame_cnt);
         }
         for (int i = 0; i < onion_prev*2+1+onion_next*2; ++i) {
             _fb->renderActive();
-            _fb->nextFrame();
+            _fb->nextFrame(frame_cnt);
         }
         for (int i = 0; i < onion_next*2+1; ++i) {
-            _fb->prevFrame();
+            _fb->prevFrame(frame_cnt);
         }
 
         renderGUI();
@@ -246,11 +246,11 @@ public:
         }
         ImGui::SameLine();
         if (ImGui::Button("<")) {
-            _fb->prevFrame();
+            _fb->prevFrame(frame_cnt);
         }
         ImGui::SameLine();
         if (ImGui::Button(">")) {
-            _fb->nextFrame();
+            _fb->nextFrame(frame_cnt);
         }
         ImGui::SameLine();
         ImGui::Checkbox("onion_prev", &onion_prev);
@@ -269,7 +269,7 @@ public:
             render();
 
             if (playing) {
-                _fb->nextFrame();
+                _fb->nextFrame(frame_cnt);
                 SDL_Delay(1000/frame_rate);
             } else {
                 /* SDL_Delay(16); */
