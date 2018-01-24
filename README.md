@@ -16,6 +16,9 @@ To run: `make; ./main`
  - space – play/stop
  - [ – toggle onion skin (backward)
  - ] – toggle onion skin (forward)
+ - b – toggle draw on background
+ - p – activate pencil
+ - e – activate eraser
 
 ## Troubleshooting
 If your pen is drawing at the wrong position or isn't drawing anything at all, try the following.

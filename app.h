@@ -40,16 +40,21 @@ class App {
 
     Tablet *_tablet;
 
-    template<typename T>
-    void set(TabletEvent res, T *buffer) {
-        auto pxl = buffer->getPixel(res.x, res.y);
-        if (!pxl) {
-            printf("oob pixel at %d %d\n", res.x, res.y);
-            return;
+    template<int weight>
+    struct Brush {
+        template<typename Buf>
+        void draw(TabletEvent res, Buf &buffer) {
+            auto pxl = buffer.getPixel(res.x, res.y);
+            if (!pxl) {
+                printf("oob pixel at %d %d\n", res.x, res.y);
+                return;
+            }
+            pxl[0] = pxl[1] = pxl[2] = 255;
+            pxl[3] = std::max(0, std::min(255, pxl[3] + weight*res.pressure/5));
         }
-        pxl[0] = pxl[1] = pxl[2] = std::min(255, pxl[0] + res.pressure/5);
-        pxl[3] = 255;
-    }
+    };
+    Brush<1> _pencil_brush;
+    Brush<-1> _eraser_brush;
 
 public:
     App() {
@@ -123,16 +128,29 @@ public:
     bool onion_next = false;
     bool background_active = false;
 
+    const static int PENCIL = 0;
+    const static int ERASER = 1;
+    int active_tool = 0;
+
 public:
     void processEvents() {
         if (background_active) {
-            processEvents(_background);
+            processEvents(*_background);
         } else {
-            processEvents(_fb);
+            processEvents(*_fb);
         }
     }
-    template <typename T>
-    void processEvents(T *buffer) {
+
+    template <typename Buf>
+    void processEvents(Buf &buffer) {
+        switch (active_tool) {
+            case PENCIL: processEvents(buffer, _pencil_brush); break;
+            case ERASER: processEvents(buffer, _eraser_brush); break;
+        }
+    }
+
+    template <typename Buf, typename Br>
+    void processEvents(Buf &buffer, Br &brush) {
         std::vector<XEvent> events;
 
         ImGuiIO& io = ImGui::GetIO();
@@ -154,7 +172,7 @@ public:
                             (int)interpolate(_last.y, res.y, step*1./STEPS),
                             int(interpolate(_last.pressure, res.pressure, step*1./STEPS)*norm/STEPS),
                         };
-                        set(in, buffer);
+                        brush.draw(in, buffer);
                     }
                 }
                 _last = res;
@@ -187,6 +205,8 @@ public:
                     case '[': onion_prev = !onion_prev; break;
                     case ']': onion_next = !onion_next; break;
                     case 'b': background_active = !background_active; break;
+                    case 'p': active_tool = PENCIL; break;
+                    case 'e': active_tool = ERASER; break;
                 }
             }
         }
@@ -249,6 +269,9 @@ public:
         ImGui::SameLine();
         ImGui::Checkbox("onion_next", &onion_next);
         ImGui::Checkbox("background_active", &background_active);
+        ImGui::RadioButton("pencil", &active_tool, PENCIL);
+        ImGui::SameLine();
+        ImGui::RadioButton("eraser", &active_tool, ERASER);
         ImGui::Render();
     }
 
