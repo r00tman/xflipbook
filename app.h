@@ -16,6 +16,7 @@
 
 #include "tablet.h"
 #include "framebuffer.h"
+#include "brush.h"
 
 
 #define FRAMESX 2
@@ -40,21 +41,8 @@ class App {
 
     Tablet *_tablet;
 
-    template<int weight>
-    struct Brush {
-        template<typename Buf>
-        void draw(TabletEvent res, Buf &buffer) {
-            auto pxl = buffer.getPixel(res.x, res.y);
-            if (!pxl) {
-                printf("oob pixel at %d %d\n", res.x, res.y);
-                return;
-            }
-            pxl[0] = pxl[1] = pxl[2] = 255;
-            pxl[3] = std::max(0, std::min(255, pxl[3] + weight*res.pressure/5));
-        }
-    };
     Brush<1> _pencil_brush;
-    Brush<-1> _eraser_brush;
+    Brush<0> _eraser_brush;
 
 public:
     App() {
@@ -164,8 +152,8 @@ public:
                 res.y = res.y * (_dimy / 16777216.);
 
                 float norm = sqrtf(powf(_last.x-res.x, 2)+powf(_last.y-res.y, 2));
-                int STEPS = ceilf(norm*5);
-                if (_last.pressure > 0 && res.pressure > 0) {
+                int STEPS = 5; //ceilf(norm/5);
+                if (_last.pressure > 0) {
                     for (int step = 0; step <= STEPS; ++step) {
                         TabletEvent in{
                             (int)interpolate(_last.x, res.x, step*1./STEPS),
