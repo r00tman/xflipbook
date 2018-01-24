@@ -32,7 +32,7 @@ public:
 
     Uint8 *getPixel(int x, int y) {
         if (y < 0 || y >= _dimy || x < 0 || x >= _dimx) {
-            throw std::range_error("pixel is oob");
+            return 0;
         }
         return &_pixels[4 * (x + _dimx * y)];
     }

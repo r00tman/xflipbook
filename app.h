@@ -34,19 +34,21 @@ class App {
     SDL_GLContext _glcontext;
     SDL_Renderer *_renderer;
     FrameBuffer *_fb;
+    Buffer *_background;
 
     Display *_xdisplay;
 
     Tablet *_tablet;
 
-    void set(TabletEvent res) {
-        try {
-            auto pxl = _fb->getPixel(res.x, res.y);
-            pxl[0] = pxl[1] = pxl[2] = std::min(255, pxl[0] + res.pressure/5);
-            pxl[3] = 255;
-        } catch (std::range_error&) {
+    template<typename T>
+    void set(TabletEvent res, T *buffer) {
+        auto pxl = buffer->getPixel(res.x, res.y);
+        if (!pxl) {
             printf("oob pixel at %d %d\n", res.x, res.y);
+            return;
         }
+        pxl[0] = pxl[1] = pxl[2] = std::min(255, pxl[0] + res.pressure/5);
+        pxl[3] = 255;
     }
 
 public:
@@ -83,6 +85,7 @@ public:
         _renderer = SDL_CreateRenderer(_window, -1,  SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
         _fb = new FrameBuffer(_renderer, FRAMEST, _dimx, _dimy, FRAMESX, FRAMESY);
+        _background = new Buffer(_renderer, _dimx, _dimy);
 
         SDL_SysWMinfo wmInfo;
         SDL_VERSION(&wmInfo.version);
@@ -96,6 +99,7 @@ public:
     }
 
     ~App() {
+        delete _background;
         delete _fb;
         ImGui_ImplSdlGL2_Shutdown();
         SDL_DestroyRenderer(_renderer);
@@ -117,9 +121,18 @@ public:
 
     bool onion_prev = false;
     bool onion_next = false;
+    bool background_active = false;
 
 public:
     void processEvents() {
+        if (background_active) {
+            processEvents(_background);
+        } else {
+            processEvents(_fb);
+        }
+    }
+    template <typename T>
+    void processEvents(T *buffer) {
         std::vector<XEvent> events;
 
         ImGuiIO& io = ImGui::GetIO();
@@ -141,7 +154,7 @@ public:
                             (int)interpolate(_last.y, res.y, step*1./STEPS),
                             int(interpolate(_last.pressure, res.pressure, step*1./STEPS)*norm/STEPS),
                         };
-                        set(in);
+                        set(in, buffer);
                     }
                 }
                 _last = res;
@@ -173,6 +186,7 @@ public:
                     case 'q': done = true; break;
                     case '[': onion_prev = !onion_prev; break;
                     case ']': onion_next = !onion_next; break;
+                    case 'b': background_active = !background_active; break;
                 }
             }
         }
@@ -188,7 +202,12 @@ public:
         SDL_RenderSetViewport(_renderer, &vp);
         SDL_RenderClear(_renderer);
 
-        _fb->updateActive();
+        if (background_active) {
+            _background->update();
+        } else {
+            _fb->updateActive();
+        }
+        _background->render(nullptr, nullptr);
 
         for (int i = 0; i < onion_prev*2; ++i) {
             _fb->prevFrame();
@@ -229,6 +248,7 @@ public:
         ImGui::Checkbox("onion_prev", &onion_prev);
         ImGui::SameLine();
         ImGui::Checkbox("onion_next", &onion_next);
+        ImGui::Checkbox("background_active", &background_active);
         ImGui::Render();
     }
 
