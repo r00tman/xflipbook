@@ -108,6 +108,7 @@ private:
 public:
     bool done = false;
     bool playing = false;
+    bool dirty = false;
     int frame_rate = 12;
     int frame_cnt = 12;
 
@@ -152,16 +153,17 @@ public:
                 res.y = res.y * (_dimy / 16777216.);
 
                 float norm = sqrtf(powf(_last.x-res.x, 2)+powf(_last.y-res.y, 2));
-                int STEPS = 5; //ceilf(norm/5);
+                int STEPS = 1; //ceilf(norm/5);
                 if (_last.pressure > 0) {
                     for (int step = 0; step <= STEPS; ++step) {
                         TabletEvent in{
                             (int)interpolate(_last.x, res.x, step*1./STEPS),
                             (int)interpolate(_last.y, res.y, step*1./STEPS),
-                            int(interpolate(_last.pressure, res.pressure, step*1./STEPS)*norm/STEPS),
+                            int(interpolate(_last.pressure, res.pressure, step*1./STEPS)*norm/STEPS/5),
                         };
                         brush.draw(in, buffer);
                     }
+                    dirty = true;
                 }
                 _last = res;
             } else {
@@ -210,10 +212,13 @@ public:
         SDL_RenderSetViewport(_renderer, &vp);
         SDL_RenderClear(_renderer);
 
-        if (background_active) {
-            _background->update();
-        } else {
-            _fb->updateActive();
+        if (dirty) {
+            if (background_active) {
+                _background->update();
+            } else {
+                _fb->updateActive();
+            }
+            dirty = false;
         }
         _background->render(nullptr, nullptr);
 
