@@ -6,6 +6,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <vector>
+#include <string>
 
 
 struct TabletEvent {
@@ -18,32 +20,19 @@ class Tablet {
     int _mEventType;
  
 public:
-    Tablet(Display *display, const char *name=NULL)
+    Tablet(Display *display, XID id=-1)
         :_display(display), _tabletDev(nullptr) {
-        int ndev;
-        XDeviceInfo *devinfo;
-        if ((devinfo = XListInputDevices(_display, &ndev)) == NULL)
-        {
-            throw std::runtime_error("Failed to get list of devices\n");
-        }
-        printf("Number of devices is %d\n", ndev);
 
-        _tabletID = 0;
-        for (int i = 0; i < ndev; i++)
-        {
-            printf("%s (%lu)\n", devinfo[i].name, devinfo[i].id);
-            if (name && strcmp(devinfo[i].name, name) == 0)
-            {
-                _tabletID = devinfo[i].id;
+        _tabletID = id;
+        if (id < 0) {
+            auto devices = listDevices(display);
+            printf("Number of devices is %lu\n", devices.size());
+            _tabletID = 0;
+            for (size_t i = 0; i < devices.size(); i++) {
+                printf("%s (%lu)\n", devices[i].first.c_str(), devices[i].second);
             }
-        }
-        if (!name) {
             printf("Select your tablet id from the list: ");
             scanf("%lu", &_tabletID);
-        }
-        XFreeDeviceList(devinfo);
-        if (_tabletID == 0) {
-            throw std::runtime_error("Can't find tablet");
         }
     }
     
@@ -51,6 +40,23 @@ public:
         if (_tabletDev != nullptr) {
             close();
         }
+    }
+
+    static std::vector<std::pair<std::string, XID> > listDevices(Display *display) {
+        int ndev;
+        XDeviceInfo *devinfo;
+        if ((devinfo = XListInputDevices(display, &ndev)) == NULL)
+        {
+            throw std::runtime_error("Failed to get list of devices\n");
+        }
+
+        std::vector<std::pair<std::string, XID> > devices;
+        for (int i = 0; i < ndev; i++) {
+            devices.push_back(make_pair(std::string(devinfo[i].name), devinfo[i].id));
+        }
+
+        XFreeDeviceList(devinfo);
+        return devices;
     }
 
     void open(int screen, Window window) {

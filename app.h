@@ -38,6 +38,7 @@ class App {
     Buffer *_background;
 
     Display *_xdisplay;
+    Window _xwindow;
 
     Tablet *_tablet;
 
@@ -84,11 +85,9 @@ public:
         SDL_VERSION(&wmInfo.version);
         SDL_GetWindowWMInfo(_window, &wmInfo);
         _xdisplay = wmInfo.info.x11.display;
-        Window xwindow = wmInfo.info.x11.window;
+        _xwindow = wmInfo.info.x11.window;
 
-        auto xscreen = DefaultScreen(_xdisplay);
-        _tablet = new Tablet(_xdisplay);
-        _tablet->open(xscreen, xwindow);
+        _tablet = nullptr;
     }
 
     ~App() {
@@ -145,7 +144,7 @@ public:
         while (XPending(_xdisplay)) {
             XEvent event;
             XNextEvent(_xdisplay, &event);
-            if (_tablet->eventOf(&event) && !io.WantCaptureMouse) {
+            if (_tablet && _tablet->eventOf(&event) && !io.WantCaptureMouse) {
                 auto res = _tablet->parse(&event);
                 /* printf("%d data is %d,%d,%d\n", event_cursor, res.x, res.y, res.pressure); */
                 res.x = res.x * (_dimx / 16777216.);
@@ -235,6 +234,20 @@ public:
     void renderGUI() {
         glUseProgram(0);
         ImGui_ImplSdlGL2_NewFrame(_window);
+        if (!_tablet) {
+            ImGui::Begin("Select your tablet", NULL, ImGuiWindowFlags_AlwaysAutoResize);
+            static int tablet_id = 0;
+            auto tablets = Tablet::listDevices(_xdisplay);
+            for (auto &tablet : tablets) {
+                ImGui::RadioButton(tablet.first.c_str(), &tablet_id, tablet.second);
+            }
+            if (ImGui::Button("Ok")) {
+                auto xscreen = DefaultScreen(_xdisplay);
+                _tablet = new Tablet(_xdisplay, tablet_id);
+                _tablet->open(xscreen, _xwindow);
+            }
+            ImGui::End();
+        }
         if (ImGui::Button("Quit")) {
             done = true;
         }
