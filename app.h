@@ -1,6 +1,8 @@
 #ifndef _APP_H
 #define _APP_H
 
+#include <chrono>
+#include <thread>
 #include <vector>
 
 #include <SDL2/SDL.h>
@@ -19,9 +21,9 @@
 #include "brush.h"
 
 
-#define FRAMESX 2
-#define FRAMESY 2
-#define FRAMEST 50
+#define FRAMESX 1
+#define FRAMESY 1
+#define FRAMEST 240
 #define FRAMESTOTAL (FRAMESX*FRAMESY*FRAMEST)
 
 float interpolate(float x, float y, float a) {
@@ -78,7 +80,7 @@ public:
 
         _renderer = SDL_CreateRenderer(_window, -1,  SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
-        _fb = new FrameBuffer(_renderer, FRAMEST, _dimx, _dimy, FRAMESX, FRAMESY);
+        _fb = new FrameBuffer(_renderer, FRAMESTOTAL, _dimx, _dimy, FRAMESX, FRAMESY);
         _background = new Buffer(_renderer, _dimx, _dimy);
 
         SDL_SysWMinfo wmInfo;
@@ -274,7 +276,7 @@ public:
             done = true;
         }
         ImGui::SliderInt("frame_rate", &frame_rate, 1, _max_rate);
-        ImGui::SliderInt("frame_cnt", &frame_cnt, 1, FRAMESTOTAL - 1);
+        ImGui::SliderInt("frame_cnt", &frame_cnt, 1, _fb->getFrameCapacity());
         ImGui::SliderInt("frame", &_fb->getCurrentFrame(), 0, frame_cnt - 1);
         if (ImGui::Button("Play/Stop")) {
             playing = !playing;
@@ -301,12 +303,16 @@ public:
 
     void run() {
         while (!done) {
+            auto start = std::chrono::high_resolution_clock::now();
+
             processEvents();
             render();
 
             if (playing) {
                 _fb->nextFrame(frame_cnt);
-                SDL_Delay(1000/frame_rate);
+                auto end = std::chrono::high_resolution_clock::now();
+                auto elapsed = end - start;
+                std::this_thread::sleep_for(std::chrono::microseconds(1000000/frame_rate)-elapsed);
             } else {
                 /* SDL_Delay(16); */
             }
