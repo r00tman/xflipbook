@@ -113,6 +113,7 @@ public:
 
     bool onion_prev = false;
     bool onion_next = false;
+    bool onion_colors = true;
     bool background_active = false;
 
     const static int PENCIL = 0;
@@ -218,14 +219,30 @@ public:
 
         for (int i = 0; i < onion_prev*2; ++i) {
             _fb->prevFrame(frame_cnt);
+            if (onion_colors) {
+                auto tint = 255-(255-63)*i;
+                _fb->renderActive(tint, 0, 0);
+            } else {
+                _fb->renderActive();
+            }
         }
-        for (int i = 0; i < onion_prev*2+1+onion_next*2; ++i) {
-            _fb->renderActive();
+        for (int i = 0; i < onion_prev*2; ++i) {
             _fb->nextFrame(frame_cnt);
         }
-        for (int i = 0; i < onion_next*2+1; ++i) {
+        for (int i = 0; i < onion_next*2; ++i) {
+            _fb->nextFrame(frame_cnt);
+            if (onion_colors) {
+                auto tint = 255-(255-63)*i;
+                _fb->renderActive(0, tint, 0);
+            } else {
+                _fb->renderActive();
+            }
+        }
+        for (int i = 0; i < onion_next*2; ++i) {
             _fb->prevFrame(frame_cnt);
         }
+        _fb->renderActive();
+
 
         renderGUI();
         SDL_RenderPresent(_renderer);
@@ -235,7 +252,7 @@ public:
         glUseProgram(0);
         ImGui_ImplSdlGL2_NewFrame(_window);
         if (!_tablet) {
-            ImGui::Begin("Select your tablet", NULL, ImGuiWindowFlags_AlwaysAutoResize);
+            ImGui::Begin("Select your tablet");
             static int tablet_id = 0;
             auto tablets = Tablet::listDevices(_xdisplay);
             for (auto &tablet : tablets) {
@@ -269,6 +286,7 @@ public:
         ImGui::Checkbox("onion_prev", &onion_prev);
         ImGui::SameLine();
         ImGui::Checkbox("onion_next", &onion_next);
+        ImGui::Checkbox("onion_colors", &onion_colors);
         ImGui::Checkbox("background_active", &background_active);
         ImGui::RadioButton("pencil", &active_tool, PENCIL);
         ImGui::SameLine();

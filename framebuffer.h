@@ -64,7 +64,7 @@ public:
         _buffers[_getBufferIdx(frame)]->update();
     }
 
-    void renderActive() {
+    void renderActive(int tintr=255, int tintg=255, int tintb=255) {
         auto frame = getCurrentFrame();
         SDL_Rect what;
         what.x = _getOffsetX(frame) * _dimx;
@@ -72,7 +72,9 @@ public:
         what.w = _dimx;
         what.h = _dimy;
 
-        _buffers[_getBufferIdx(frame)]->render(&what, nullptr);
+        auto buffer = _buffers[_getBufferIdx(frame)];
+        buffer->tint(tintr, tintg, tintb);
+        buffer->render(&what, nullptr);
     }
 
     void prevFrame(int frame_count=0) {

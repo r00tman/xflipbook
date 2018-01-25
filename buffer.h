@@ -37,6 +37,10 @@ public:
         return &_pixels[4 * (x + _dimx * y)];
     }
 
+    void tint(int r, int g, int b) {
+        SDL_SetTextureColorMod(_texture, r, g, b);
+    }
+
     void update() {
         SDL_UpdateTexture(_texture, NULL, _pixels, 4 * _dimx * sizeof (Uint8));
     }
